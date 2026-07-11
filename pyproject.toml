@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semantic-layer-ai-agent-lab"
+version = "1.0.0"
+description = "Governed semantic analytics agent with deterministic evaluation evidence"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

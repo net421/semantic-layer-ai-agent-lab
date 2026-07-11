@@ -1,0 +1,15 @@
+{
+  "policy_version": "1.0.0",
+  "database_mode": "read_only",
+  "maximum_result_rows": 50,
+  "prohibited_sql": ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "ATTACH", "PRAGMA"],
+  "human_review": {
+    "required_for_recommendations": true,
+    "agent_may_execute_actions": false
+  },
+  "cost_model": {
+    "input_usd_per_million_tokens": 0.15,
+    "output_usd_per_million_tokens": 0.6
+  }
+}
+

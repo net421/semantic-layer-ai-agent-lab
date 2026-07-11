@@ -1,0 +1,49 @@
+{
+  "contract_version": "1.0.0",
+  "entity": "shipment_order",
+  "table": "orders",
+  "grain": "one row per fulfilled order",
+  "allowed_dimensions": {
+    "region": "Customer delivery region",
+    "category": "Product category",
+    "carrier": "Fulfilment carrier"
+  },
+  "metrics": {
+    "on_time_delivery_rate": {
+      "description": "Share of delivered orders arriving on or before the promised date",
+      "expression": "AVG(CASE WHEN delivered_date <= promised_date THEN 1.0 ELSE 0.0 END)",
+      "format": "percent",
+      "minimum_acceptable": 0.9
+    },
+    "fill_rate": {
+      "description": "Units shipped divided by units ordered",
+      "expression": "SUM(units_shipped) * 1.0 / NULLIF(SUM(units_ordered), 0)",
+      "format": "percent",
+      "minimum_acceptable": 0.95
+    },
+    "net_revenue": {
+      "description": "Shipped units multiplied by realized unit price",
+      "expression": "SUM(units_shipped * unit_price)",
+      "format": "currency",
+      "minimum_acceptable": null
+    },
+    "average_lead_time_days": {
+      "description": "Average calendar days from order to delivery",
+      "expression": "AVG(julianday(delivered_date) - julianday(order_date))",
+      "format": "decimal",
+      "minimum_acceptable": null
+    }
+  },
+  "authorized_questions": [
+    "Show on-time delivery rate by region",
+    "Show fill rate by category",
+    "Show net revenue by region",
+    "Show average lead time by carrier"
+  ],
+  "refusal_topics": [
+    "customer personal data",
+    "employee performance",
+    "write or delete operations",
+    "metrics absent from the contract"
+  ]
+}
