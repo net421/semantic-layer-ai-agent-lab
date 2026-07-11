@@ -1,5 +1,11 @@
 __pycache__/
 *.py[cod]
 .venv/
+.pytest_cache/
+data/raw/*.csv
 data/processed/*.db
-
+artifacts/*.json
+artifacts/*.jsonl
+artifacts/*.md
+!artifacts/.gitkeep
+_upstream/

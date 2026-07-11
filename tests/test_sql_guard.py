@@ -1,12 +1,15 @@
-import unittest
 import sqlite3
+import unittest
 
 from semantic_agent.sql_guard import UnsafeQuery, install_sqlite_authorizer, validate_read_only_sql
 
 
 class SqlGuardTests(unittest.TestCase):
     def test_governed_select_is_allowed(self):
-        validate_read_only_sql("SELECT region, COUNT(*) FROM orders GROUP BY region LIMIT 50", ["DELETE", "DROP"])
+        validate_read_only_sql(
+            "SELECT region, COUNT(*) FROM orders GROUP BY region LIMIT 50",
+            ["DELETE", "DROP"],
+        )
 
     def test_mutation_is_rejected(self):
         with self.assertRaises(UnsafeQuery):
@@ -38,7 +41,9 @@ class SqlGuardTests(unittest.TestCase):
 
     def test_engine_allows_governed_aggregate(self):
         connection = sqlite3.connect(":memory:")
-        connection.execute("CREATE TABLE orders (region TEXT, units_ordered INTEGER, units_shipped INTEGER)")
+        connection.execute(
+            "CREATE TABLE orders (region TEXT, units_ordered INTEGER, units_shipped INTEGER)"
+        )
         connection.execute("INSERT INTO orders VALUES ('North', 10, 9)")
         install_sqlite_authorizer(connection)
         rows = connection.execute(
@@ -47,6 +52,28 @@ class SqlGuardTests(unittest.TestCase):
         ).fetchall()
         self.assertEqual([("North", 0.9)], rows)
         connection.close()
+
+    def test_union_is_rejected(self):
+        with self.assertRaises(UnsafeQuery):
+            validate_read_only_sql(
+                "SELECT region FROM orders UNION SELECT name FROM sqlite_master LIMIT 50",
+                ["UNION"],
+                prohibited_tokens=["sqlite_"],
+            )
+
+    def test_sql_comment_is_rejected(self):
+        with self.assertRaises(UnsafeQuery):
+            validate_read_only_sql(
+                "SELECT region FROM orders -- bypass\nLIMIT 50",
+                ["DELETE"],
+                prohibited_tokens=["--"],
+            )
+
+    def test_excessive_limit_is_rejected(self):
+        with self.assertRaises(UnsafeQuery):
+            validate_read_only_sql(
+                "SELECT region FROM orders LIMIT 100", ["DELETE"], maximum_rows=50
+            )
 
 
 if __name__ == "__main__":

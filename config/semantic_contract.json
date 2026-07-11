@@ -1,50 +1,39 @@
 {
-  "contract_version": "1.0.0",
-  "entity": "shipment_order",
+  "contract_version": "2.0.0",
+  "entity": "order_fulfillment",
   "table": "orders",
   "grain": "one row per fulfilled order",
+  "upstream_bundle": "integrations/upstream_contracts.json",
   "allowed_dimensions": {
-    "region": "Customer delivery region",
-    "category": "Product category",
-    "carrier": "Fulfilment carrier"
+    "warehouse": {"description": "Fulfilment warehouse", "scope": "shared_upstream", "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "carrier": {"description": "Fulfilment carrier", "scope": "shared_upstream", "upstream_support": ["dbt_fct_orders", "warehouse_order_fulfillment"]},
+    "order_date": {"description": "Order creation date", "scope": "shared_upstream", "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "region": {"description": "Customer delivery region", "scope": "warehouse_enrichment", "upstream_support": ["warehouse_order_fulfillment"]},
+    "category": {"description": "Synthetic single-category order enrichment", "scope": "local_fixture_only", "upstream_support": []}
   },
   "metrics": {
-    "on_time_delivery_rate": {
-      "description": "Share of delivered orders arriving on or before the promised date",
-      "expression": "AVG(CASE WHEN delivered_date <= promised_date THEN 1.0 ELSE 0.0 END)",
-      "format": "percent",
-      "minimum_acceptable": 0.9
-    },
-    "fill_rate": {
-      "description": "Units shipped divided by units ordered",
-      "expression": "SUM(units_shipped) * 1.0 / NULLIF(SUM(units_ordered), 0)",
-      "format": "percent",
-      "minimum_acceptable": 0.95
-    },
-    "net_revenue": {
-      "description": "Shipped units multiplied by realized unit price",
-      "expression": "SUM(units_shipped * unit_price)",
-      "format": "currency",
-      "minimum_acceptable": null
-    },
-    "average_lead_time_days": {
-      "description": "Average calendar days from order to delivery",
-      "expression": "AVG(julianday(delivered_date) - julianday(order_date))",
-      "format": "decimal",
-      "minimum_acceptable": null
-    }
+    "unit_fill_rate": {"aliases": ["fill_rate"], "description": "Units shipped divided by units ordered using a ratio of sums", "expression": "SUM(units_shipped) * 1.0 / NULLIF(SUM(units_ordered), 0)", "formula_id": "ratio_of_sums:units_shipped/units_ordered", "format": "percent", "minimum_acceptable": 0.95, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "complete_order_rate": {"aliases": [], "description": "Share of orders shipped in full", "expression": "AVG(CAST(is_in_full AS REAL))", "formula_id": "average_boolean:is_in_full", "format": "percent", "minimum_acceptable": 0.9, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "on_time_delivery_rate": {"aliases": [], "description": "Share of orders delivered on or before the promised date", "expression": "AVG(CAST(is_on_time AS REAL))", "formula_id": "average_boolean:is_on_time", "format": "percent", "minimum_acceptable": 0.9, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "otif_rate": {"aliases": [], "description": "Share of orders that are both on time and in full", "expression": "AVG(CAST(is_otif AS REAL))", "formula_id": "average_boolean:is_otif", "format": "percent", "minimum_acceptable": 0.85, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "revenue": {"aliases": ["net_revenue"], "description": "Recognized order revenue", "expression": "SUM(order_revenue)", "formula_id": "sum:order_revenue", "format": "currency", "minimum_acceptable": null, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "average_order_cycle_time_days": {"aliases": ["average_lead_time_days"], "description": "Average calendar days from order creation to delivery", "expression": "AVG(order_cycle_time_days)", "formula_id": "average:order_cycle_time_days", "format": "decimal", "minimum_acceptable": null, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "total_logistics_cost": {"aliases": [], "description": "Freight, handling and exception cost", "expression": "SUM(total_logistics_cost)", "formula_id": "sum:total_logistics_cost", "format": "currency", "minimum_acceptable": null, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]},
+    "cost_to_serve_pct": {"aliases": [], "description": "Total logistics cost divided by recognized revenue using a ratio of sums", "expression": "SUM(total_logistics_cost) * 1.0 / NULLIF(SUM(order_revenue), 0)", "formula_id": "ratio_of_sums:total_logistics_cost/order_revenue", "format": "percent", "minimum_acceptable": null, "upstream_support": ["dbt_fct_orders", "dbt_supply_chain_kpis", "warehouse_order_fulfillment"]}
   },
-  "authorized_questions": [
-    "Show on-time delivery rate by region",
-    "Show fill rate by category",
-    "Show net revenue by region",
-    "Show average lead time by carrier"
+  "question_catalog": [
+    {"question": "Show fill rate by category", "metric": "fill_rate", "dimension": "category", "source_scope": "local_fixture_only"},
+    {"question": "Show on-time delivery rate by region", "metric": "on_time_delivery_rate", "dimension": "region", "source_scope": "warehouse_enrichment"},
+    {"question": "Show net revenue by region", "metric": "net_revenue", "dimension": "region", "source_scope": "warehouse_enrichment"},
+    {"question": "Show average lead time by carrier", "metric": "average_lead_time_days", "dimension": "carrier", "source_scope": "shared_upstream"},
+    {"question": "Show unit fill rate by warehouse", "metric": "unit_fill_rate", "dimension": "warehouse", "source_scope": "shared_upstream"},
+    {"question": "Show complete order rate by warehouse", "metric": "complete_order_rate", "dimension": "warehouse", "source_scope": "shared_upstream"},
+    {"question": "Show on-time delivery rate by warehouse", "metric": "on_time_delivery_rate", "dimension": "warehouse", "source_scope": "shared_upstream"},
+    {"question": "Show OTIF rate by carrier", "metric": "otif_rate", "dimension": "carrier", "source_scope": "shared_upstream"},
+    {"question": "Show revenue by warehouse", "metric": "revenue", "dimension": "warehouse", "source_scope": "shared_upstream"},
+    {"question": "Show total logistics cost by warehouse", "metric": "total_logistics_cost", "dimension": "warehouse", "source_scope": "shared_upstream"},
+    {"question": "Show cost to serve percentage by warehouse", "metric": "cost_to_serve_pct", "dimension": "warehouse", "source_scope": "shared_upstream"},
+    {"question": "Show average order cycle time by carrier", "metric": "average_order_cycle_time_days", "dimension": "carrier", "source_scope": "shared_upstream"}
   ],
-  "refusal_topics": [
-    "customer personal data",
-    "employee performance",
-    "write or delete operations",
-    "metrics absent from the contract"
-  ]
+  "refusal_topics": ["customer personal data", "employee performance", "write or delete operations", "metrics absent from the contract", "unbounded raw row exports", "autonomous operational actions"]
 }
-

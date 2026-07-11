@@ -1,0 +1,133 @@
+{
+  "bundle_version": "1.0.0",
+  "validated_repositories": [
+    {
+      "repository": "net421/dbt-analytics-engineering-lab",
+      "commit_sha": "263134172e4ec3f422b47c25d01a86555ea29df9"
+    },
+    {
+      "repository": "net421/cloud-warehouse-analytics-lab",
+      "commit_sha": "140b076edcb89c3b27c3786887ee17d21494a44d"
+    }
+  ],
+  "sources": {
+    "dbt_fct_orders": {
+      "repository": "net421/dbt-analytics-engineering-lab",
+      "commit_sha": "263134172e4ec3f422b47c25d01a86555ea29df9",
+      "relation": "fct_orders",
+      "grain": "one row per order",
+      "source_file": "models/marts/core/fct_orders.sql",
+      "git_blob_sha": "62814c5c32b9e57ee7faac7d550477ba07ef9994",
+      "required_fragments": [
+        "units_ordered",
+        "units_shipped",
+        "order_revenue",
+        "unit_fill_rate",
+        "is_in_full",
+        "calculated_on_time as is_on_time",
+        "is_otif",
+        "order_cycle_time_days",
+        "total_logistics_cost",
+        "cost_to_serve_pct",
+        "freight_cost_per_kg"
+      ],
+      "columns": [
+        "order_id", "customer_id", "warehouse", "order_date", "promised_date",
+        "shipment_id", "carrier", "ship_date", "delivery_date", "order_line_count",
+        "distinct_sku_count", "units_ordered", "units_shipped", "order_revenue",
+        "unit_fill_rate", "is_in_full", "is_on_time", "is_otif",
+        "order_cycle_time_days", "freight_cost", "handling_cost", "exception_cost",
+        "total_logistics_cost", "cost_to_serve_pct", "freight_cost_per_kg"
+      ],
+      "metric_formula_ids": {
+        "unit_fill_rate": "ratio_of_sums:units_shipped/units_ordered",
+        "complete_order_rate": "average_boolean:is_in_full",
+        "on_time_delivery_rate": "average_boolean:is_on_time",
+        "otif_rate": "average_boolean:is_otif",
+        "revenue": "sum:order_revenue",
+        "average_order_cycle_time_days": "average:order_cycle_time_days",
+        "total_logistics_cost": "sum:total_logistics_cost",
+        "cost_to_serve_pct": "ratio_of_sums:total_logistics_cost/order_revenue"
+      }
+    },
+    "dbt_supply_chain_kpis": {
+      "repository": "net421/dbt-analytics-engineering-lab",
+      "commit_sha": "263134172e4ec3f422b47c25d01a86555ea29df9",
+      "relation": "mart_supply_chain_kpis",
+      "grain": "one row per order_date and warehouse",
+      "source_file": "models/marts/operations/mart_supply_chain_kpis.sql",
+      "git_blob_sha": "aa14000ce1be7cc074e367509454cfb1594e8916",
+      "required_fragments": [
+        "sum(units_shipped) / nullif(cast(sum(units_ordered) as double), 0) as unit_fill_rate",
+        "avg(cast(is_in_full as integer)) as complete_order_rate",
+        "avg(cast(calculated_on_time as integer)) as on_time_delivery_rate",
+        "avg(cast(is_otif as integer)) as otif_rate",
+        "sum(order_revenue) as revenue",
+        "avg(order_cycle_time_days) as average_order_cycle_time_days",
+        "sum(total_logistics_cost) as total_logistics_cost",
+        "sum(total_logistics_cost) / nullif(sum(order_revenue), 0) as cost_to_serve_pct"
+      ],
+      "columns": [
+        "order_date", "warehouse", "order_count", "units_ordered", "units_shipped",
+        "unit_fill_rate", "complete_order_rate", "on_time_delivery_rate", "otif_rate",
+        "average_order_cycle_time_days", "revenue", "total_logistics_cost",
+        "cost_to_serve_pct", "average_freight_cost_per_kg"
+      ],
+      "metric_formula_ids": {
+        "unit_fill_rate": "ratio_of_sums:units_shipped/units_ordered",
+        "complete_order_rate": "average_boolean:is_in_full",
+        "on_time_delivery_rate": "average_boolean:is_on_time",
+        "otif_rate": "average_boolean:is_otif",
+        "revenue": "sum:order_revenue",
+        "average_order_cycle_time_days": "average:order_cycle_time_days",
+        "total_logistics_cost": "sum:total_logistics_cost",
+        "cost_to_serve_pct": "ratio_of_sums:total_logistics_cost/order_revenue"
+      }
+    },
+    "warehouse_order_fulfillment": {
+      "repository": "net421/cloud-warehouse-analytics-lab",
+      "commit_sha": "140b076edcb89c3b27c3786887ee17d21494a44d",
+      "relation": "analytics.mart_order_fulfillment",
+      "grain": "one row per order",
+      "source_file": "duckdb_local_simulator/sql/03_marts.sql",
+      "git_blob_sha": "f251555d77f2b529265b13881f17e293033eef8c",
+      "required_fragments": [
+        "create or replace table analytics.mart_order_fulfillment",
+        "units_shipped::double / nullif(units_ordered, 0) as unit_fill_rate",
+        "case when units_shipped >= units_ordered then 1 else 0 end as complete_order_flag",
+        "case when delivery_date <= promised_date then 1 else 0 end as on_time_flag",
+        "then 1",
+        "end as otif_flag",
+        "freight_cost + handling_cost + exception_cost as logistics_cost",
+        "logistics_cost / nullif(recognized_revenue, 0) as logistics_cost_pct_revenue"
+      ],
+      "columns": [
+        "order_id", "customer_id", "warehouse", "order_date", "promised_date",
+        "units_ordered", "units_shipped", "recognized_revenue", "customer_segment",
+        "region", "shipment_id", "carrier", "ship_date", "delivery_date",
+        "freight_cost", "handling_cost", "exception_cost", "unit_fill_rate",
+        "complete_order_flag", "on_time_flag", "order_lead_time_days",
+        "logistics_cost", "otif_flag", "logistics_cost_pct_revenue"
+      ],
+      "metric_formula_ids": {
+        "unit_fill_rate": "ratio_of_sums:units_shipped/units_ordered",
+        "complete_order_rate": "average_boolean:is_in_full",
+        "on_time_delivery_rate": "average_boolean:is_on_time",
+        "otif_rate": "average_boolean:is_otif",
+        "revenue": "sum:order_revenue",
+        "average_order_cycle_time_days": "average:order_cycle_time_days",
+        "total_logistics_cost": "sum:total_logistics_cost",
+        "cost_to_serve_pct": "ratio_of_sums:total_logistics_cost/order_revenue"
+      },
+      "column_aliases": {
+        "recognized_revenue": "order_revenue",
+        "complete_order_flag": "is_in_full",
+        "on_time_flag": "is_on_time",
+        "otif_flag": "is_otif",
+        "order_lead_time_days": "order_cycle_time_days",
+        "logistics_cost": "total_logistics_cost",
+        "logistics_cost_pct_revenue": "cost_to_serve_pct"
+      }
+    }
+  }
+}

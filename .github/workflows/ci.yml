@@ -1,8 +1,9 @@
-name: ci
+name: semantic-agent-validation
 
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,9 +12,34 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out semantic agent
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Check out pinned dbt upstream
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          python-version: "3.11"
-      - run: make verify
-
+          repository: net421/dbt-analytics-engineering-lab
+          ref: 263134172e4ec3f422b47c25d01a86555ea29df9
+          path: _upstream/dbt
+          persist-credentials: false
+      - name: Check out pinned warehouse upstream
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: net421/cloud-warehouse-analytics-lab
+          ref: 140b076edcb89c3b27c3786887ee17d21494a44d
+          path: _upstream/warehouse
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: "3.12.7"
+      - name: Validate local and live semantic integration
+        run: |
+          make verify-live \
+            DBT_ROOT="$GITHUB_WORKSPACE/_upstream/dbt" \
+            WAREHOUSE_ROOT="$GITHUB_WORKSPACE/_upstream/warehouse"
+      - name: Upload semantic agent evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: semantic-agent-validation-evidence
+          path: artifacts
+          if-no-files-found: error
