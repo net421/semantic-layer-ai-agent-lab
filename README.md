@@ -1,71 +1,111 @@
 # Semantic Layer AI Agent Lab
 
-A complete local laboratory for governed analytical questions. It turns a versioned semantic contract into validated read-only SQL, executes against a reproducible supply-chain dataset, records evidence traces, evaluates correct refusals, and routes recommendations to human review.
+A governed analytics agent that converts a versioned semantic catalog into
+bounded read-only SQL, reconciles every permitted answer against an independent
+reference implementation, records evidence lineage and validates its metric
+contracts against the portfolio's dbt and cloud-warehouse repositories.
 
-## Evidence summary
+## What is integrated
 
-| Capability | Inspectable evidence | Validation |
-|---|---|---|
-| Governed metrics | `config/semantic_contract.json` | Contract tests and catalog snapshot |
-| Agent scope | `src/semantic_agent/planner.py` | Four allowed and four refused eval cases |
-| Safe SQL | `src/semantic_agent/sql_guard.py` | Mutation/table policy tests |
-| Grounded answers | `artifacts/agent_traces.jsonl` | SQL, rows, contract version and stages retained |
-| Human control | `docs/TOOL_ACCESS_AND_APPROVAL_CONTRACT.md` | Recommendations cannot execute actions |
-| Quality gate | `artifacts/evaluation_results.json` | Correctness and refusal thresholds |
+This release pins and validates:
 
-## Business problem
+- `dbt-analytics-engineering-lab` model `fct_orders`;
+- dbt mart `mart_supply_chain_kpis`;
+- `cloud-warehouse-analytics-lab` relation
+  `analytics.mart_order_fulfillment`.
 
-Analysts and AI systems can produce conflicting answers when KPI definitions, grouping dimensions and source tables are implicit. This lab publishes one narrow operational semantic contract and forces every supported answer through that contract.
+GitHub Actions checks out both upstream repositories at exact commits and verifies
+the reviewed SQL files by Git blob ID and required metric fragments. The agent
+therefore fails closed when an upstream model drifts from the published semantic
+contract.
 
 ## Architecture
 
 ```text
-Deterministic orders -> SQLite analytical entity -> semantic intent
-  -> governed SQL planner -> read-only SQL guard -> result rows
-  -> trace + optional recommendation -> human review
+Pinned dbt + warehouse SQL contracts
+              ↓
+Versioned semantic catalog + aliases + source scopes
+              ↓
+Exact-question planner → read-only SQL guard → SQLite authorizer
+              ↓
+Grounded rows + independent Python reconciliation
+              ↓
+Lineage trace + optional human-review recommendation
+              ↓
+Evaluation, reproducibility and live-upstream CI gates
 ```
 
-## Run from a clean checkout
+## Governed scope
 
-Requirements: Python 3.11+ and GNU Make. Runtime code uses only the Python standard library.
+The catalog publishes eight canonical metrics:
+
+- unit fill rate;
+- complete order rate;
+- on-time delivery rate;
+- OTIF rate;
+- revenue;
+- average order cycle time;
+- total logistics cost;
+- cost-to-serve percentage.
+
+Shared upstream dimensions include warehouse, carrier and order date. Region is
+classified as a warehouse enrichment. Category remains available only as a
+clearly labeled local fixture for backward compatibility.
+
+The planner authorizes 12 exact analytical questions and refuses all other
+requests. It is intentionally not an unrestricted natural-language-to-SQL
+system.
+
+## Run locally
+
+Requires CPython 3.12 and GNU Make. Runtime code uses the standard library.
 
 ```bash
 make verify
 ```
 
-The command deletes prior generated outputs, creates 360 deterministic orders, builds the SQLite database, executes eight evaluation cases, writes the evidence bundle, runs eleven automated tests, and verifies the release decision.
+This command:
 
-## Generated evidence
+1. validates the semantic/upstream snapshot bundle;
+2. generates 480 deterministic fulfilled orders;
+3. builds a read-only SQLite analytical fixture;
+4. executes 20 answer/refusal evaluations;
+5. reconciles every allowed result in independent Python;
+6. runs the complete automated test suite;
+7. verifies artifact hashes and release gates;
+8. proves byte-identical evidence across two clean runs.
 
-| Artifact | Purpose |
-|---|---|
-| `artifacts/semantic_catalog_snapshot.json` | Exact contract used by the run |
-| `artifacts/evaluation_results.json` | Per-case results, thresholds and release decision |
-| `artifacts/agent_traces.jsonl` | Full answer/refusal traces with SQL, rows, cost and latency |
-| `artifacts/artifact_manifest.json` | Input hashes and generated output inventory |
-| `artifacts/run_report.md` | Human-readable run summary |
+To validate actual local checkouts of the two upstream repositories:
 
-## Supported questions
-
-- Show on-time delivery rate by region.
-- Show fill rate by category.
-- Show net revenue by region.
-- Show average lead time by carrier.
-
-Other questions are refused. This is intentional evidence of scope control.
-
-## Claim boundary
-
-This repository demonstrates a synthetic, local, governed analytics pattern. It does not claim an enterprise semantic platform, unrestricted natural-language understanding, autonomous decisions, live cloud deployment or production monitoring. The evaluation result applies only to the published cases and versioned contract.
-
-## Repository structure
-
-```text
-config/       semantic and tool policies
-data/         reproducible input and local database
-evals/        answer/refusal evaluation dataset
-src/          data, contract, planner, guard, agent and pipeline
-tests/        contract, policy and agent tests
-artifacts/    generated evidence bundle
-docs/         agent card, evaluation and approval contracts
+```bash
+make verify-live \
+  DBT_ROOT=../dbt-analytics-engineering-lab \
+  WAREHOUSE_ROOT=../cloud-warehouse-analytics-lab
 ```
+
+## Evidence generated
+
+- `semantic_catalog_snapshot.json`
+- `upstream_compatibility_report.json`
+- `evaluation_results.json`
+- `agent_traces.jsonl`
+- `run_report.md`
+- `artifact_manifest.json`
+- `live_upstream_validation.json` in the remote live gate
+
+Generated data, databases and evidence are ignored by Git and uploaded by CI as
+`semantic-agent-validation-evidence`.
+
+## Safety and claim boundary
+
+The SQL planner permits one generated `SELECT`, one approved table and at most 50
+result rows. Text inspection and SQLite's authorizer both enforce the boundary.
+Recommendations require human review and never execute actions.
+
+This repository demonstrates a synthetic local agent and source-code-level
+compatibility with pinned portfolio models. It does not claim a live production
+warehouse connection, broad natural-language understanding, autonomous action,
+enterprise identity controls or production monitoring.
+
+See [`docs/UPSTREAM_INTEGRATION.md`](docs/UPSTREAM_INTEGRATION.md) and
+[`docs/SEMANTIC_GOVERNANCE.md`](docs/SEMANTIC_GOVERNANCE.md).
